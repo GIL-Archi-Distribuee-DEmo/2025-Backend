@@ -11,4 +11,4 @@ COPY ${OPEN_TELEMETRY} opentelemetry-javaagent.jar
 
 ENTRYPOINT java\
     -javaagent:opentelemetry-javaagent.jar\
-    -jar app.jar
+    -jar /app.jar

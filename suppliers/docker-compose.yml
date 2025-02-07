@@ -3,16 +3,20 @@ services:
   supplier-service:
     build: ./
     environment:
+      OTEL_SERVICE_NAME: "supplier-service"
       OTEL_TRACES_EXPORTER: "jaeger"
       OTEL_EXPORTER_JAEGER_ENDPOINT: "http://jaeger:14250"
       OTEL_METRICS_EXPORTER: "logging"
       OTEL_LOGS_EXPORTER: "logging"
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/suppliers"
+      SPRING_DATASOURCE_USERNAME: "username"
+      SPRING_DATASOURCE_PASSWORD: "password"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
     depends_on:
       - postgres
       - jaeger-all-in-one
     ports:
       - "8080:8080"
-      - "14250"
 
   jaeger-all-in-one:
     container_name: jaeger
@@ -21,8 +25,9 @@ services:
       - COLLECTOR_OTLP_ENABLED=true
     restart: always
     ports:
-      - "16684:16686"
-      - "14250"
+      - "16686:16686"
+      - "14250:14250"
+
   postgres:
     container_name: postgres-supplier
     image: postgres:latest
@@ -33,4 +38,3 @@ services:
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
-
