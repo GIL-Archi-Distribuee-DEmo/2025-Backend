@@ -7,7 +7,6 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="products" />
-        <module name="supplier" />
       </profile>
       <profile name="Annotation profile for suppliers" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
@@ -15,11 +14,13 @@
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.36/lombok-1.18.36.jar" />
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.36/lombok-1.18.36.jar" />
         </processorPath>
         <module name="suppliers" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="supplier" target="21" />
       <module name="vol" target="23" />
     </bytecodeTargetLevel>
   </component>

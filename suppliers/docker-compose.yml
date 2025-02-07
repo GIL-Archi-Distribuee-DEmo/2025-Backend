@@ -1,0 +1,36 @@
+version: '3'
+services:
+  supplier-service:
+    build: ./
+    environment:
+      OTEL_TRACES_EXPORTER: "jaeger"
+      OTEL_EXPORTER_JAEGER_ENDPOINT: "http://jaeger:14250"
+      OTEL_METRICS_EXPORTER: "logging"
+      OTEL_LOGS_EXPORTER: "logging"
+    depends_on:
+      - postgres
+      - jaeger-all-in-one
+    ports:
+      - "8080:8080"
+      - "14250"
+
+  jaeger-all-in-one:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: always
+    ports:
+      - "16684:16686"
+      - "14250"
+  postgres:
+    container_name: postgres-supplier
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_DB: suppliers
+      POSTGRES_USER: username
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+
