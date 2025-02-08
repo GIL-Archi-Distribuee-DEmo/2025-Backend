@@ -22,7 +22,7 @@ public class ProductService {
         return productRepository.save(product);
     }
 
-    @KafkaListener(topics = "fournisseurs-events", groupId = "produits-group")
+    @KafkaListener(topics = "fournisseurs-events", groupId = "products-group")
     public void consumeFournisseurEvent(String message) {
         System.out.println("📥 Message Kafka reçu: " + message);
         // Implémenter la logique de mise à jour si besoin (par exemple, notifier les produits liés)
