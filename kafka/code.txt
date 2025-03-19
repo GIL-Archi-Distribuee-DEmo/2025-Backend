@@ -1,0 +1,207 @@
+package com.agriculture.workflow;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.camunda.bpm.engine.RuntimeService;
+import org.camunda.bpm.engine.delegate.DelegateExecution;
+import org.camunda.bpm.engine.delegate.JavaDelegate;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Value;
+import org.camunda.bpm.engine.test.assertions.bpmn.BpmnAwareTests;
+import static org.assertj.core.api.Assertions.assertThat;
+import jakarta.persistence.*;
+import java.util.Map;
+import java.util.HashMap;
+
+@SpringBootApplication
+public class CamundaApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(CamundaApplication.class, args);
+    }
+}
+
+@RestController
+@RequestMapping("/process")
+class ProcessController {
+    private final RuntimeService runtimeService;
+
+    public ProcessController(RuntimeService runtimeService) {
+        this.runtimeService = runtimeService;
+    }
+
+    @PostMapping("/start/{processKey}")
+    public String startProcess(@PathVariable String processKey, @RequestBody Map<String, Object> variables) {
+        return runtimeService.startProcessInstanceByKey(processKey, variables).getProcessInstanceId();
+    }
+}
+
+@Entity
+class Supplier {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    private String email;
+}
+
+interface SupplierRepository extends JpaRepository<Supplier, Long> {}
+
+@Service
+class SupplierService {
+    @Autowired
+    private SupplierRepository supplierRepository;
+
+    public Supplier saveSupplier(Supplier supplier) {
+        return supplierRepository.save(supplier);
+    }
+}
+
+class ValidateSupplierTask implements JavaDelegate {
+    @Autowired
+    private SupplierService supplierService;
+
+    @Override
+    public void execute(DelegateExecution execution) {
+        String supplierName = (String) execution.getVariable("supplierName");
+        String email = (String) execution.getVariable("email");
+        Supplier supplier = new Supplier();
+        supplier.setName(supplierName);
+        supplier.setEmail(email);
+        supplierService.saveSupplier(supplier);
+        execution.setVariable("supplierValid", true);
+    }
+}
+
+@Entity
+class Product {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    private int quantity;
+
+    @ManyToOne
+    private Supplier supplier;
+}
+
+interface ProductRepository extends JpaRepository<Product, Long> {}
+
+@Service
+class ProductService {
+    @Autowired
+    private ProductRepository productRepository;
+
+    public Product saveProduct(Product product) {
+        return productRepository.save(product);
+    }
+}
+
+class ValidateProductTask implements JavaDelegate {
+    @Autowired
+    private ProductService productService;
+
+    @Override
+    public void execute(DelegateExecution execution) {
+        String productName = (String) execution.getVariable("productName");
+        int quantity = (Integer) execution.getVariable("quantity");
+        Product product = new Product();
+        product.setName(productName);
+        product.setQuantity(quantity);
+        productService.saveProduct(product);
+    }
+}
+
+@Entity
+class Order {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private int quantity;
+
+    @ManyToOne
+    private Product product;
+}
+
+interface OrderRepository extends JpaRepository<Order, Long> {}
+
+@Service
+class OrderService {
+    @Autowired
+    private OrderRepository orderRepository;
+
+    public Order saveOrder(Order order) {
+        return orderRepository.save(order);
+    }
+}
+
+class ValidateOrderTask implements JavaDelegate {
+    @Autowired
+    private OrderService orderService;
+
+    @Override
+    public void execute(DelegateExecution execution) {
+        Long productId = (Long) execution.getVariable("productId");
+        int quantity = (Integer) execution.getVariable("quantity");
+        Order order = new Order();
+        order.setQuantity(quantity);
+        execution.setVariable("orderValidated", true);
+        orderService.saveOrder(order);
+    }
+}
+
+@SpringBootTest
+class CamundaProcessTest {
+    @Autowired
+    private RuntimeService runtimeService;
+
+    @Test
+    void testProcessExecution() {
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("supplierName", "Test Supplier");
+        variables.put("email", "test@supplier.com");
+        variables.put("productName", "Test Product");
+        variables.put("quantity", 10);
+
+        var processInstance = runtimeService.startProcessInstanceByKey("agricultureProcess", variables);
+        assertThat(processInstance).isNotNull();
+        assertThat(processInstance.isEnded()).isFalse();
+    }
+
+    @Test
+    void testSupplierValidation() {
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("supplierName", "Valid Supplier");
+        variables.put("email", "valid@supplier.com");
+
+        var processInstance = runtimeService.startProcessInstanceByKey("agricultureProcess", variables);
+        assertThat(processInstance).isNotNull();
+        assertThat(runtimeService.getVariable(processInstance.getId(), "supplierValid")).isEqualTo(true);
+    }
+
+    @Test
+    void testProductValidation() {
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("productName", "Corn");
+        variables.put("quantity", 50);
+
+        var processInstance = runtimeService.startProcessInstanceByKey("agricultureProcess", variables);
+        assertThat(processInstance).isNotNull();
+        assertThat(runtimeService.getVariable(processInstance.getId(), "productName")).isEqualTo("Corn");
+    }
+
+    @Test
+    void testOrderProcessing() {
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("productId", 1L);
+        variables.put("quantity", 20);
+
+        var processInstance = runtimeService.startProcessInstanceByKey("agricultureProcess", variables);
+        assertThat(processInstance).isNotNull();
+        assertThat(runtimeService.getVariable(processInstance.getId(), "orderValidated")).isEqualTo(true);
+    }
+}
